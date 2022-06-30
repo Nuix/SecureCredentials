@@ -1,0 +1,82 @@
+Imports System
+Imports System.IO
+Imports System.Text
+Imports System.Security.Cryptography
+Imports System.Runtime.InteropServices
+Imports System.ComponentModel
+Imports Microsoft.VisualBasic
+Imports System.Web.Script.Serialization
+
+Public Class frmSecureCredentials
+    Private Sub btnEncrypt_Click(sender As Object, e As EventArgs) Handles btnEncrypt.Click
+        ' check to see if the username and password were entered on the user interface
+        If txtUsername.Text = vbNullString Then
+            MessageBox.Show("You must enter a Username", "Enter Username")
+            txtUsername.Select()
+            Exit Sub
+        End If
+        If txtPassword.Text = vbNullString Then
+            MessageBox.Show("You must enter a Password", "Enter Username")
+            txtPassword.Select()
+            Exit Sub
+        End If
+        Try
+            Dim sUserName As String
+            Dim sPassword As String
+            Dim sTextToEncrypt As String
+            Dim entropy As String = Nothing
+            Dim description As String
+            Dim encrypted As String
+            Dim sCredentialsPath As String
+            Dim jsoncontents As String
+            Dim sEncryptedFolderPath As String
+            ' read in the contents of the Settings.json file
+            jsoncontents = My.Computer.FileSystem.ReadAllText("C:\ProgramData\Nuix\ProcessingFiles\ScriptAutomate\Settings.json")
+            Dim read = Newtonsoft.Json.Linq.JObject.Parse(jsoncontents)
+            ' get the dblocation to store the encrypted credentials in
+            sEncryptedFolderPath = read.Item("dblocation").ToString
+
+            sUserName = txtUsername.Text
+            sPassword = txtPassword.Text
+            ' set the text to encrypt to be the username and password entered on the user interface
+            sTextToEncrypt = "UserName=" & sUserName & ":Password=" & sPassword
+
+            ' Call DPAPI to encrypt data with user-specific key.
+            encrypted = DPAPI.Encrypt(DPAPI.KeyType.MachineKey, sTextToEncrypt, entropy, "UCRTEncryptedData")
+
+            ' build the path to the nuixconfig.cfg which will store the encryted data
+            sCredentialsPath = sEncryptedFolderPath & "\nuixconfig.cfg"
+
+            ' write the encrypted data to the credentials fiel
+            WriteEncrypt(sCredentialsPath, encrypted)
+
+            MessageBox.Show("Encrypted data stored in - " & sCredentialsPath)
+
+        Catch ex As Exception
+            While Not (ex Is Nothing)
+                MessageBox.Show(ex.Message)
+
+                ex = ex.InnerException
+            End While
+        End Try
+
+    End Sub
+
+    Public Sub WriteEncrypt(ByVal sEncryptedFileName As String, ByVal sString As String)
+        Dim EncryptFile As StreamWriter
+
+        If (File.Exists(sEncryptedFileName)) Then
+            EncryptFile = New StreamWriter(sEncryptedFileName)
+            EncryptFile.Write(sString)
+            EncryptFile.Close()
+        Else
+            Try
+                EncryptFile = New StreamWriter(sEncryptedFileName)
+                EncryptFile.WriteLine(sString)
+                EncryptFile.Close()
+            Catch ex As Exception
+                MessageBox.Show(ex.ToString)
+            End Try
+        End If
+    End Sub
+End Class
